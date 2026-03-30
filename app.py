@@ -1,13 +1,13 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-from sklearn.linear_model import LinearRegression
 import numpy as np
+from sklearn.linear_model import LinearRegression
 import matplotlib.pyplot as plt
 
 st.set_page_config(page_title="Indian Stock Predictor", layout="wide")
 st.title("🇮🇳 Indian Stock Price Predictor")
-st.write("Predict next-day stock price using Linear Regression (Quick Version)")
+st.write("Predict next-day stock price using Linear Regression (Safe Version)")
 
 # Top 50 NSE companies with symbols
 top_nse_companies = {
@@ -62,7 +62,7 @@ top_nse_companies = {
     "Balkrishna Industries": "BALKRISIND.NS"
 }
 
-# Dropdown to select company
+# Select company from dropdown
 company_name = st.selectbox("Select a Company", list(top_nse_companies.keys()))
 symbol = top_nse_companies[company_name]
 
@@ -74,16 +74,19 @@ if st.button("Predict"):
             st.error("No data found for this company. Try another one.")
             st.stop()
         
+        # Show historical chart
         st.subheader(f"Historical Data for {company_name} ({symbol})")
         st.line_chart(df['Close'])
 
-        # Prepare data for Linear Regression
+        # Clean data and prepare for Linear Regression
         df = df.reset_index()
+        df = df[['Date', 'Close']].dropna()
         df['DateOrdinal'] = pd.to_datetime(df['Date']).map(pd.Timestamp.toordinal)
+
         X = df['DateOrdinal'].values.reshape(-1,1)
         y = df['Close'].values
 
-        # Train Linear Regression
+        # Train Linear Regression model
         model = LinearRegression()
         model.fit(X, y)
 
@@ -93,13 +96,14 @@ if st.button("Predict"):
         next_date_ord = np.array([[next_date.toordinal()]])
         next_price_array = model.predict(next_date_ord)
 
-        try:
-            next_price = float(next_price_array[0])
+        # Convert to float safely
+        next_price = float(np.squeeze(next_price_array))
+        if np.isnan(next_price):
+            st.error("Prediction resulted in NaN. Check the stock symbol or historical data.")
+        else:
             st.success(f"Next day predicted price: ₹{next_price:.2f}")
-        except:
-            st.error("Prediction failed. Array could not be converted to float.")
 
-        # Plot regression
+        # Plot regression trend line
         plt.figure(figsize=(10,5))
         plt.scatter(df['Date'], y, label="Actual Price")
         plt.plot(df['Date'], model.predict(X), color='red', label="Trend Line")
