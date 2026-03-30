@@ -5,7 +5,8 @@ from sklearn.linear_model import LinearRegression
 import numpy as np
 import matplotlib.pyplot as plt
 
-st.title("🇮🇳 Fast Indian Stock Predictor")
+st.set_page_config(page_title="Indian Stock Predictor", layout="wide")
+st.title("🇮🇳 Indian Stock Price Predictor")
 st.write("Predict next-day stock price using Linear Regression (Quick Version)")
 
 # Top 50 NSE companies with symbols
@@ -55,9 +56,7 @@ top_nse_companies = {
     "Tata Motors": "TATAMOTORS.NS",
     "GAIL India": "GAIL.NS",
     "HDFC AMC": "HDFCAMC.NS",
-    "Asian Paints": "ASIANPAINT.NS",
     "Cipla": "CIPLA.NS",
-    "Dr Lal Path Labs": "LALPATHLAB.NS",
     "SBI Life": "SBILIFE.NS",
     "Adani Ports": "ADANIPORTS.NS",
     "Balkrishna Industries": "BALKRISIND.NS"
@@ -71,30 +70,37 @@ if st.button("Predict"):
     try:
         # Fetch historical data
         df = yf.download(symbol, start="2020-01-01")
+        if df.empty:
+            st.error("No data found for this company. Try another one.")
+            st.stop()
+        
         st.subheader(f"Historical Data for {company_name} ({symbol})")
         st.line_chart(df['Close'])
 
-        # Prepare data
+        # Prepare data for Linear Regression
         df = df.reset_index()
         df['DateOrdinal'] = pd.to_datetime(df['Date']).map(pd.Timestamp.toordinal)
-        X = df['DateOrdinal'].values.reshape(-1, 1)
+        X = df['DateOrdinal'].values.reshape(-1,1)
         y = df['Close'].values
 
         # Train Linear Regression
         model = LinearRegression()
         model.fit(X, y)
 
-        # Predict next day
+        # Predict next day safely
         last_date = df['Date'].iloc[-1]
         next_date = last_date + pd.Timedelta(days=1)
         next_date_ord = np.array([[next_date.toordinal()]])
         next_price_array = model.predict(next_date_ord)
-        next_price = float(next_price_array[0])  # <-- Safe conversion
 
-        st.success(f"Next day predicted price: ₹{next_price:.2f}")
+        try:
+            next_price = float(next_price_array[0])
+            st.success(f"Next day predicted price: ₹{next_price:.2f}")
+        except:
+            st.error("Prediction failed. Array could not be converted to float.")
 
         # Plot regression
-        plt.figure(figsize=(10, 5))
+        plt.figure(figsize=(10,5))
         plt.scatter(df['Date'], y, label="Actual Price")
         plt.plot(df['Date'], model.predict(X), color='red', label="Trend Line")
         plt.title(f"{company_name} Price Trend")
